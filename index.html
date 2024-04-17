@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Graph Visualization</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Graph Traversal Visualization</h1>
+    <div class="traversal-options">
+      <button id="bfsButton">BFS</button>
+      <button id="dfsButton">DFS</button>
+      <button id="ucsButton">UCS</button>
+    </div>
+    <div class="graph-input">
+      <div class="input-headers">
+        <h3>Node</h3>
+        <h3>Adjacent</h3>
+        <h3>Weight</h3>
+        <button id="addNodeButton">Add Node</button>
+        <button id="submitButton">Submit</button>
+      </div>
+      <div id="inputElements" class="input-elements"></div>
+    </div>
+    <canvas id="myCanvas" width="800" height="600"></canvas>
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
