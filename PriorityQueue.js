@@ -1,42 +1,74 @@
-`
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  Setup
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-`;
-
 let graph = {
   S: [
-    { node: "A", cost: 4 },
-    { node: "B", cost: 2 },
-    { node: "C", cost: 3 },
+    { node: "A", weight: 4 },
+    { node: "B", weight: 2 },
+    { node: "C", weight: 3 },
   ],
-  A: [{ node: "D", cost: 1 }],
-  B: [{ node: "D", cost: 2 }],
-  C: [{ node: "D", cost: 3 }],
+  A: [{ node: "D", weight: 1 }],
+  B: [{ node: "D", weight: 2 }],
+  C: [{ node: "D", weight: 3 }],
   D: [],
 };
-
-const canvas = document.getElementById("myCanvas");
-const ctx = canvas.getContext("2d");
-
-const nodeRadius = 20;
-const nodeSpacing = 100;
-let nodePositions;
-
-populateGraphUI(graph);
-drawGraph(graph);
-
-`
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  Event Listeners
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-`;
+// let graph = {
+//   S: ["A", "B", "C"],
+//   A: ["D"],
+//   B: ["D"],
+//   C: ["D"],
+//   D: [],
+// };
 
 const addNodeButton = document.querySelector("#addNodeButton");
+const inputElements = document.querySelector("#inputElements");
 const submitButton = document.querySelector("#submitButton");
-const bfsButton = document.querySelector("#bfsButton");
-const dfsButton = document.querySelector("#dfsButton");
-const ucsButton = document.querySelector("#ucsButton");
+
+Object.entries(graph).map((element) => {
+  const inputRow = document.createElement("div");
+  const inputElement = document.createElement("input");
+  const secondInputElement = document.createElement("input");
+  const thirdInputElement = document.createElement("input");
+  const deleteButton = document.createElement("button");
+
+  deleteButton.textContent = "Delete";
+  deleteButton.className = "delete-button";
+
+  deleteButton.addEventListener("click", () => {
+    inputElements.removeChild(inputRow);
+  });
+
+  inputElement.value = element[0];
+  secondInputElement.value = element[1].map((el) => el.node).join(",");
+  thirdInputElement.value = element[1].map((el) => el.weight).join(",");
+
+  inputRow.appendChild(inputElement);
+  inputRow.appendChild(secondInputElement);
+  inputRow.appendChild(thirdInputElement);
+  inputRow.appendChild(deleteButton);
+
+  inputElements.appendChild(inputRow);
+});
+
+const inputRow = document.createElement("div");
+const startingNodeLabel = document.createElement("p");
+const inputStartingNode = document.createElement("p");
+const goalNodeLabel = document.createElement("p");
+const inputGoalNode = document.createElement("p");
+
+startingNodeLabel.textContent = "Starting Node: ";
+inputStartingNode.textContent = Object.keys(graph)[0];
+goalNodeLabel.textContent = "Goal Node: ";
+inputGoalNode.textContent = Object.keys(graph)[Object.keys(graph).length - 1];
+
+inputRow.style.justifyContent = "center";
+inputRow.id = "startingNode";
+inputGoalNode.id = "goalNode";
+inputGoalNode.style.width = "50px";
+inputGoalNode.style.height = "20px";
+
+inputRow.appendChild(startingNodeLabel);
+inputRow.appendChild(inputStartingNode);
+inputRow.appendChild(goalNodeLabel);
+inputRow.appendChild(inputGoalNode);
+inputElements.appendChild(inputRow);
 
 addNodeButton.addEventListener("click", () => {
   const inputRow = document.createElement("div");
@@ -72,7 +104,7 @@ submitButton.addEventListener("click", () => {
   );
 
   for (const inputRow of inputElements.children) {
-    const [node, adjacentsInput, costInput] = inputRow.children;
+    const [node, adjacentsInput, weightInput] = inputRow.children;
 
     if (
       node.value === undefined ||
@@ -88,13 +120,6 @@ submitButton.addEventListener("click", () => {
     }
 
     const adjacents = adjacentsInput.value.split(",");
-    const costs = costInput.value.split(",");
-
-    if (adjacents.length !== costs.length) {
-      alert("The number of adjacents must be the same as the number of costs.");
-      return;
-    }
-
     const undeclaredNodes = adjacents.filter(
       (adjacent) => !nodeNames.includes(adjacent)
     );
@@ -109,11 +134,11 @@ submitButton.addEventListener("click", () => {
     }
 
     newGraphValue[node.value] = adjacents.map((adjacent, i) => {
-      const cost = costs[i];
+      const weight = weightInput.value.split(",")[i];
 
       return {
         node: adjacent,
-        cost: Number(cost),
+        weight: Number(weight),
       };
     });
   }
@@ -127,18 +152,20 @@ submitButton.addEventListener("click", () => {
   drawGraph(graph);
 });
 
+const bfsButton = document.querySelector("#bfsButton");
+const dfsButton = document.querySelector("#dfsButton");
+const ucsButton = document.querySelector("#ucsButton");
+
 bfsButton.addEventListener("click", async () => {
   await bfs(Object.keys(graph)[0], graph);
 
   drawGraph(graph);
 });
-
 dfsButton.addEventListener("click", async () => {
   await dfs(Object.keys(graph)[0], graph);
 
   drawGraph(graph);
 });
-
 ucsButton.addEventListener("click", async () => {
   const inputGoalNode = document.querySelector("#goalNode");
   await ucs(Object.keys(graph)[0], graph, inputGoalNode.textContent);
@@ -148,11 +175,12 @@ ucsButton.addEventListener("click", async () => {
   drawGraph(graph);
 });
 
-`
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  Canvas Related Functions
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-`;
+const canvas = document.getElementById("myCanvas");
+const ctx = canvas.getContext("2d");
+
+// Define node size and spacing
+const nodeRadius = 20;
+const nodeSpacing = 100;
 
 function drawNode(label, x, y, color = "#ccc") {
   ctx.beginPath();
@@ -169,7 +197,7 @@ function drawNode(label, x, y, color = "#ccc") {
   ctx.fillText(label, x, y);
 }
 
-function drawEdge(fromX, fromY, toX, toY, cost = 1) {
+function drawEdge(fromX, fromY, toX, toY, weight = 1) {
   ctx.beginPath();
   ctx.moveTo(fromX, fromY);
   ctx.lineTo(toX, toY);
@@ -182,7 +210,7 @@ function drawEdge(fromX, fromY, toX, toY, cost = 1) {
   ctx.fillStyle = "#000";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(cost.toString(), midX, midY);
+  ctx.fillText(weight.toString(), midX, midY);
 }
 
 function layoutNodes(graph) {
@@ -217,6 +245,8 @@ function layoutNodes(graph) {
   return nodePositions;
 }
 
+let nodePositions;
+
 function drawGraph(graph) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   nodePositions = layoutNodes(graph);
@@ -227,25 +257,15 @@ function drawGraph(graph) {
     for (const child of graph[node]) {
       const childText = child.node;
       const childPos = nodePositions[childText];
-      drawEdge(x, y, childPos.x, childPos.y, child.cost);
+      drawEdge(x, y, childPos.x, childPos.y, child.weight);
     }
 
     drawNode(node, x, y);
   }
 }
 
-function drawVisitedNode(node, x, y, color) {
-  ctx.clearRect(x - nodeRadius, y - nodeRadius, 2 * nodeRadius, 2 * nodeRadius);
-
-  // Redraw the node with the new color
-  drawNode(node, x, y, color);
-}
-
-`
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  Algorithms
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-`;
+drawGraph(graph);
+// bfs(Object.keys(graph)[0], graph);
 
 async function dfs(startNode, graph) {
   const visited = new Set();
@@ -329,74 +349,24 @@ async function ucs(startNode, graph, goalNode) {
       return "No path found";
     }
 
-    neighbors.sort((a, b) => a.cost - b.cost);
+    neighbors.sort((a, b) => a.weight - b.weight);
     const lowestCostAdjacentNode = neighbors[0];
 
     console.log(visited);
 
     return visit(
       lowestCostAdjacentNode.node,
-      cost + lowestCostAdjacentNode.cost
+      cost + lowestCostAdjacentNode.weight
     );
   }
 
   return visit(startNode, 0);
 }
 
-`
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  Others
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-`;
+function drawVisitedNode(node, x, y, color) {
+  // Clear the area around the node
+  ctx.clearRect(x - nodeRadius, y - nodeRadius, 2 * nodeRadius, 2 * nodeRadius);
 
-function populateGraphUI(graph) {
-  const inputElements = document.querySelector("#inputElements");
-  const inputRow = document.createElement("div");
-  const startingNodeLabel = document.createElement("p");
-  const inputStartingNode = document.createElement("p");
-  const goalNodeLabel = document.createElement("p");
-  const inputGoalNode = document.createElement("p");
-
-  Object.entries(graph).map((element) => {
-    const inputRow = document.createElement("div");
-    const inputElement = document.createElement("input");
-    const secondInputElement = document.createElement("input");
-    const thirdInputElement = document.createElement("input");
-    const deleteButton = document.createElement("button");
-
-    deleteButton.textContent = "Delete";
-    deleteButton.className = "delete-button";
-
-    deleteButton.addEventListener("click", () => {
-      inputElements.removeChild(inputRow);
-    });
-
-    inputElement.value = element[0];
-    secondInputElement.value = element[1].map((el) => el.node).join(",");
-    thirdInputElement.value = element[1].map((el) => el.cost).join(",");
-
-    inputRow.appendChild(inputElement);
-    inputRow.appendChild(secondInputElement);
-    inputRow.appendChild(thirdInputElement);
-    inputRow.appendChild(deleteButton);
-
-    inputElements.appendChild(inputRow);
-  });
-
-  startingNodeLabel.textContent = "Starting Node: ";
-  inputStartingNode.textContent = Object.keys(graph)[0];
-  goalNodeLabel.textContent = "Goal Node: ";
-  inputGoalNode.textContent = Object.keys(graph)[Object.keys(graph).length - 1];
-
-  inputRow.style.justifyContent = "center";
-  inputRow.id = "startingNode";
-  inputGoalNode.id = "goalNode";
-  inputGoalNode.style.width = "50px";
-  inputGoalNode.style.height = "20px";
-
-  inputRow.appendChild(startingNodeLabel);
-  inputRow.appendChild(inputStartingNode);
-  inputRow.appendChild(goalNodeLabel);
-  inputRow.appendChild(inputGoalNode);
-  inputElements.appendChild(inputRow);
+  // Redraw the node with the new color
+  drawNode(node, x, y, color);
 }
