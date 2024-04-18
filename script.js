@@ -10,8 +10,8 @@ let graph = {
     { node: "B", cost: 2 },
     { node: "C", cost: 3 },
   ],
-  A: [{ node: "D", cost: 1 }],
-  B: [{ node: "D", cost: 2 }],
+  A: [{ node: "D", cost: 5 }],
+  B: [],
   C: [{ node: "D", cost: 3 }],
   D: [],
 };
@@ -161,7 +161,6 @@ function drawNode(label, x, y, color = "#ccc") {
   ctx.fill();
   ctx.stroke();
 
-  // Draw label inside the node
   ctx.font = "16px Arial";
   ctx.fillStyle = "#000";
   ctx.textAlign = "center";
@@ -172,7 +171,7 @@ function drawNode(label, x, y, color = "#ccc") {
 function drawEdge(fromX, fromY, toX, toY, cost = 1) {
   ctx.beginPath();
   ctx.moveTo(fromX, fromY);
-  ctx.lineTo(toX, toY);
+  lineToWithArrow(ctx, fromX, fromY, toX, toY, 25);
   ctx.stroke();
 
   const midX = (fromX + toX) / 2 - 12;
@@ -183,6 +182,26 @@ function drawEdge(fromX, fromY, toX, toY, cost = 1) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(cost.toString(), midX, midY);
+}
+
+function lineToWithArrow(ctx, fromX, fromY, toX, toY, offset = 10) {
+  const arrowSize = 10;
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+
+  const endX = toX - offset * Math.cos(angle);
+  const endY = toY - offset * Math.sin(angle);
+
+  ctx.lineTo(endX, endY);
+
+  const arrowX1 = endX - arrowSize * Math.cos(angle + Math.PI / 6);
+  const arrowY1 = endY - arrowSize * Math.sin(angle + Math.PI / 6);
+  const arrowX2 = endX - arrowSize * Math.cos(angle - Math.PI / 6);
+  const arrowY2 = endY - arrowSize * Math.sin(angle - Math.PI / 6);
+
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(arrowX1, arrowY1);
+  ctx.lineTo(arrowX2, arrowY2);
+  ctx.fill();
 }
 
 function layoutNodes(graph) {
@@ -237,7 +256,6 @@ function drawGraph(graph) {
 function drawVisitedNode(node, x, y, color) {
   ctx.clearRect(x - nodeRadius, y - nodeRadius, 2 * nodeRadius, 2 * nodeRadius);
 
-  // Redraw the node with the new color
   drawNode(node, x, y, color);
 }
 
@@ -249,26 +267,33 @@ function drawVisitedNode(node, x, y, color) {
 
 async function dfs(startNode, graph) {
   const visited = new Set();
-  const nodeText = startNode.node === undefined ? startNode : startNode.node;
-  // Mark the node as visited
-  visited.add(nodeText);
+  const stack = [];
 
-  // Get the adjacent node
-  const neighbors = graph[nodeText];
+  stack.push(startNode);
 
-  // Draw the node with a new color
-  const { x, y } = nodePositions[nodeText];
-  drawVisitedNode(nodeText, x, y, "yellow");
+  while (stack.length > 0) {
+    const currentNode = stack.pop();
+    const nodeText =
+      currentNode.node === undefined ? currentNode : currentNode.node;
 
-  // For each adjacent node
-  for (const neighbor of neighbors) {
-    // Add delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // If the neighbor hasn't been visited yet
-    if (!visited.has(neighbor)) {
-      await dfs(neighbor, graph, visited);
+    if (visited.has(nodeText)) {
+      continue;
     }
+
+    visited.add(nodeText);
+
+    const { x, y } = nodePositions[nodeText];
+    drawVisitedNode(nodeText, x, y, "yellow");
+
+    const neighbors = graph[nodeText];
+
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        stack.push(neighbor);
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   return visited;
@@ -277,6 +302,7 @@ async function dfs(startNode, graph) {
 async function bfs(startNode, graph) {
   const visited = new Set();
   const queue = [startNode];
+
   while (queue.length > 0) {
     const node = queue.shift();
     const nodeText = node.node === undefined ? node : node.node;
@@ -300,47 +326,52 @@ async function bfs(startNode, graph) {
 }
 
 async function ucs(startNode, graph, goalNode) {
+  const priorityQueue = [{ node: startNode, cost: 0, path: [startNode] }];
   const visited = new Set();
+  let lowestCostToGoal = Infinity;
 
-  async function visit(node, cost) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  while (priorityQueue.length > 0) {
+    priorityQueue.sort((a, b) => a.cost - b.cost);
 
-    if (node === goalNode) {
-      console.log(node, goalNode);
-      visited.add(node);
-
-      const { x, y } = nodePositions[node];
-      drawVisitedNode(node, x, y, "yellow");
-
-      console.log("end");
-
-      return `Goal reached! Total cost: ${cost}`;
-    }
-
-    visited.add(node);
+    const { node, cost, path } = priorityQueue.shift();
     const { x, y } = nodePositions[node];
     drawVisitedNode(node, x, y, "yellow");
 
-    const neighbors = graph[node].filter(
-      (neighbor) => !visited.has(neighbor.node)
-    );
+    visited.add(node);
 
-    if (neighbors.length === 0) {
-      return "No path found";
+    if (node === goalNode) {
+      lowestCostToGoal = cost;
+      console.log("Goal reached! Lowest cost:", lowestCostToGoal, path);
+      return path;
     }
 
-    neighbors.sort((a, b) => a.cost - b.cost);
-    const lowestCostAdjacentNode = neighbors[0];
+    for (const neighbor of graph[node] || []) {
+      const newCost = cost + neighbor.cost;
+      const newPath = path.concat(neighbor.node);
 
-    console.log(visited);
+      if (!visited.has(neighbor.node)) {
+        const existingNode = priorityQueue.find(
+          (item) => item.node === neighbor.node
+        );
+        if (existingNode) {
+          if (newCost < existingNode.cost) {
+            existingNode.cost = newCost;
+            existingNode.path = newPath;
+          }
+        } else {
+          priorityQueue.push({
+            node: neighbor.node,
+            cost: newCost,
+            path: newPath,
+          });
+        }
+      }
+    }
 
-    return visit(
-      lowestCostAdjacentNode.node,
-      cost + lowestCostAdjacentNode.cost
-    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  return visit(startNode, 0);
+  return null;
 }
 
 `
